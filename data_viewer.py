@@ -80,20 +80,31 @@ with tab1:
 with tab2:
     st.header("Transcript Viewer")
     
-    transcript_options = filtered_df.groupby(['transcriptid', 'headline', 'companyname', 'mostimportantdateutc']).size().reset_index()
-    transcript_options['display'] = transcript_options.apply(
+    # Create unique event list (one per company+headline+date combination)
+    event_options = filtered_df.groupby(['companyname', 'headline', 'mostimportantdateutc']).agg({
+        'transcriptid': 'first'  # Just take the first transcript ID (they should be unified now)
+    }).reset_index()
+    event_options['display'] = event_options.apply(
         lambda x: f"{x['companyname']} - {x['headline']} ({x['mostimportantdateutc']})", axis=1
     )
     
-    selected_transcript_display = st.selectbox(
-        "Select Transcript to View",
-        transcript_options['display'].tolist()
+    selected_event_display = st.selectbox(
+        "Select Event to View",
+        event_options['display'].tolist()
     )
     
-    if selected_transcript_display:
-        selected_idx = transcript_options[transcript_options['display'] == selected_transcript_display].index[0]
-        transcript_id = transcript_options.iloc[selected_idx]['transcriptid']
-        transcript_data = filtered_df[filtered_df['transcriptid'] == transcript_id].sort_values('componentorder')
+    if selected_event_display:
+        selected_idx = event_options[event_options['display'] == selected_event_display].index[0]
+        selected_company = event_options.iloc[selected_idx]['companyname']
+        selected_headline = event_options.iloc[selected_idx]['headline']
+        selected_date = event_options.iloc[selected_idx]['mostimportantdateutc']
+        
+        # Get all data for this event (should be under single transcript ID now)
+        transcript_data = filtered_df[
+            (filtered_df['companyname'] == selected_company) &
+            (filtered_df['headline'] == selected_headline) &
+            (filtered_df['mostimportantdateutc'] == selected_date)
+        ].sort_values('componentorder')
         
         st.subheader(f"📄 {transcript_data.iloc[0]['headline']}")
         
