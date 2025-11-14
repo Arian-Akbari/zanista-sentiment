@@ -7,6 +7,7 @@ import sys
 import pickle
 import json
 import asyncio
+import os
 from pathlib import Path
 from typing import List, Dict
 from asyncio import TimeoutError
@@ -14,11 +15,15 @@ from datetime import datetime
 
 sys.path.append(str(Path(__file__).parent.parent))
 
+from dotenv import load_dotenv
 from config.models import get_async_client
 from config.pricing import get_model_pricing
 from sentiment_analysis.prompts.sentiment_prompts import get_sentiment_prompt, get_user_prompt
 from sentiment_analysis.cost_logger import CostLogger
 import pandas as pd
+
+# Load environment variables
+load_dotenv()
 
 
 class ProductionSentimentAnalyzer:
@@ -303,13 +308,14 @@ async def main():
     # Configuration
     DATA_PATH = "data/processed/v2_transcripts_aggregated_for_gpt.pkl"
     OUTPUT_PATH = "data/results/v2_sentiment_results.pkl"
-    MODEL = "gpt-4.1"
+    MODEL = os.getenv("MODEL", "gpt-4.1")  # Read from .env, default to gpt-4.1
     TIMEOUT = 45  # seconds
     MAX_RETRIES = 3
     BATCH_SIZE = 50  # concurrent requests
     SAVE_EVERY = 100  # save progress every N events
     
     # Create analyzer
+    print(f"Using model: {MODEL}")
     analyzer = ProductionSentimentAnalyzer(
         model_name=MODEL,
         timeout=TIMEOUT,
