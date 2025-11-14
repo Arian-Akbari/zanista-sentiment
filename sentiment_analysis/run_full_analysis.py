@@ -301,8 +301,8 @@ async def main():
     """Main function to run full analysis"""
     
     # Configuration
-    DATA_PATH = "data/processed/transcripts_aggregated_for_gpt.pkl"
-    OUTPUT_PATH = "data/results/sentiment_results.pkl"
+    DATA_PATH = "data/processed/v2_transcripts_aggregated_for_gpt.pkl"
+    OUTPUT_PATH = "data/results/v2_sentiment_results.pkl"
     MODEL = "gpt-4.1"
     TIMEOUT = 45  # seconds
     MAX_RETRIES = 3

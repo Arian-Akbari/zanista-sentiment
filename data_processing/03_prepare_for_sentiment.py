@@ -12,16 +12,11 @@ def vprint(*args, **kwargs):
 print(f'Started: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
 # STEP 1: Load and Filter Data
-input_file = Path('data/processed/transcripts_cleaned.pkl')
+input_file = Path('data/processed/v2_transcripts_cleaned.pkl')
 if not input_file.exists():
-    fallback_file = Path('transcripts_cleaned.pkl')
-    if fallback_file.exists():
-        print(f"Note: Reading from current directory (legacy location)")
-        input_file = fallback_file
-    else:
-        print(f"ERROR: Input file not found: {input_file}")
-        print("Please run 02_clean_data.py first")
-        raise SystemExit(1)
+    print(f"ERROR: Input file not found: {input_file}")
+    print("Please run 02_clean_data.py first")
+    raise SystemExit(1)
 
 print('Loading cleaned dataset...')
 with open(input_file, 'rb') as f:
@@ -95,7 +90,7 @@ vprint(f'  {sample["companyname"]} - {sample["headline"][:60]}')
 vprint(f'  {sample["num_speeches"]} speeches, {sample["total_word_count"]:,} words')
 
 # Save aggregated dataset
-output_file = Path('data/processed/transcripts_aggregated_for_gpt.pkl')
+output_file = Path('data/processed/v2_transcripts_aggregated_for_gpt.pkl')
 output_file.parent.mkdir(parents=True, exist_ok=True)
 with open(output_file, 'wb') as f:
     pickle.dump(df_aggregated, f)

@@ -1,7 +1,28 @@
 import pickle
 import pandas as pd
+from pathlib import Path
 
-with open('transcripts_2024.pkl', 'rb') as f:
+# Try multiple locations for input file
+input_paths = [
+    Path('transcripts_2024.pkl'),
+    Path('data/raw/transcripts_2024.pkl')
+]
+
+input_file = None
+for path in input_paths:
+    if path.exists():
+        input_file = path
+        break
+
+if input_file is None:
+    print("❌ ERROR: Raw data file 'transcripts_2024.pkl' not found")
+    print("   Searched in:")
+    for path in input_paths:
+        print(f"     - {path}")
+    raise SystemExit(1)
+
+print(f"Loading data from: {input_file}")
+with open(input_file, 'rb') as f:
     df = pickle.load(f)
 
 print(f"Original data shape: {df.shape}")
@@ -18,7 +39,8 @@ print(f"\nBreakdown by component type:")
 print(filtered_df['transcriptcomponenttypename'].value_counts())
 print(f"\nSample company IDs: {first_100_companies[:5]}")
 
-with open('transcripts_first100.pkl', 'wb') as f:
+output_file = 'v2_transcripts_first100.pkl'
+with open(output_file, 'wb') as f:
     pickle.dump(filtered_df, f)
 
-print("\n✓ Saved ALL data for first 100 companies to: transcripts_first100.pkl")
+print(f"\n✓ Saved ALL data for first 100 companies to: {output_file}")

@@ -46,22 +46,58 @@ Analyzed executive tone during earnings call presentations using GPT-4.1. Classi
 
 ---
 
-## Reproducing Analysis
+## Complete Analysis Pipeline
 
+### Setup
 ```bash
-# Setup
+# Activate virtual environment
 source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Configure Azure OpenAI (requires .env file)
+# Configure Azure OpenAI (create .env file)
 # AZURE_OPENAI_API_KEY=your-key
 # AZURE_OPENAI_ENDPOINT=your-endpoint
 # AZURE_OPENAI_API_VERSION=2024-12-01-preview
+```
 
-# Run full analysis (803 events)
+### Run Full Pipeline (Automated)
+
+```bash
+# Execute entire pipeline: filter → clean → aggregate → sentiment
+bash run_pipeline.sh
+```
+
+### Run Individual Steps (Manual)
+
+**Step 1: Filter to First 100 Companies**
+```bash
+python data_processing/01_filter_companies.py
+# Output: v2_transcripts_first100.pkl
+```
+
+**Step 2: Clean Duplicates**
+```bash
+python data_processing/02_clean_data.py
+# Output: data/processed/v2_transcripts_cleaned.pkl
+```
+
+**Step 3: Filter & Aggregate for Sentiment**
+```bash
+python data_processing/03_prepare_for_sentiment.py
+# Output: data/processed/v2_transcripts_aggregated_for_gpt.pkl
+```
+
+**Step 4: Run Sentiment Analysis**
+```bash
 python run_sentiment_analysis.py
+# Output: data/results/v2_sentiment_results.pkl
+# ⚠️  WARNING: This costs ~$20 via Azure OpenAI API
+```
 
-# View processed data
+### View Data
+```bash
 streamlit run data_processing/data_viewer.py
 ```
 

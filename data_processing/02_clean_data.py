@@ -12,14 +12,14 @@ def vprint(*args, **kwargs):
 print(f'Started: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
 # Load data
-input_file = Path('transcripts_first100.pkl')
+input_file = Path('v2_transcripts_first100.pkl')
 if not input_file.exists():
     print(f"ERROR: Input file not found: {input_file}")
     print("Please run 01_filter_companies.py first")
     raise SystemExit(1)
 
 print('Loading data...')
-with open('transcripts_first100.pkl', 'rb') as f:
+with open(input_file, 'rb') as f:
     df = pickle.load(f)
 
 if df.columns.duplicated().any():
@@ -155,7 +155,7 @@ vprint('\nComponent type distribution:')
 vprint(df_clean['transcriptcomponenttypename'].value_counts())
 
 # Save cleaned data
-output_file = Path('data/processed/transcripts_cleaned.pkl')
+output_file = Path('data/processed/v2_transcripts_cleaned.pkl')
 output_file.parent.mkdir(parents=True, exist_ok=True)
 with open(output_file, 'wb') as f:
     pickle.dump(df_clean, f)
