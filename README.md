@@ -1,7 +1,7 @@
 # 📊 Zanista Earnings Call Sentiment Analysis
 
 **Client:** Zanista.AI  
-**Project:** Executive Presentation Sentiment Analysis (Version 2)  
+**Project:** Executive Presentation Sentiment Analysis  
 **Dataset:** First 100 companies, 2024 earning call transcripts  
 **Status:** ✅ Data Cleaning Complete | ✅ Ground Truth Labeled | ✅ Prompt Validated (85% accuracy) | 🔄 Ready for Full Analysis
 
@@ -10,65 +10,34 @@
 ## 🎯 Project Overview
 
 ### **Business Context**
-This project is part of Zanista's **NewsWitch** product, which collects news from multiple sources and extracts insights including sentiment analysis. This specific task focuses on analyzing the **tone and perspective** of company executives during earnings call presentations.
+This project is part of Zanista's **NewsWitch** product. It analyzes the **tone and perspective** of company executives during earnings call presentations.
 
 ### **Core Objective**
-Analyze the **tone/language** used by executives when presenting earnings results, regardless of actual financial performance. We want to understand how executives **frame and present** results, not just what the results are (which is in accounting reports).
-
-### **Task Evolution**
-- **Version 1:** Temporal segmentation (past/present/future) → sentiment analysis
-- **Version 2 (Current):** Content filtering → sentiment analysis (temporal segmentation already done)
+Analyze the **tone/language** used by executives when presenting earnings results, regardless of actual financial performance. We want to understand how executives **frame and present** results, not just what the results are.
 
 ---
 
-## 📋 Task Requirements (Client-Confirmed)
+## 📋 Task Requirements
 
 ### **1. Sentiment Label Definitions**
 - **Positive:** Optimistic tone, good financial performance presentation, beating expectations
 - **Negative:** Cautious tone, poor results presentation, challenges/concerns
 - **Neutral:** Factual/balanced tone, mixed signals, no clear direction
-- **Focus:** TONE/LANGUAGE used regardless of actual performance
 
-### **2. Information Filtering**
-**KEEP (Relevant for company evaluation):**
-- Financial metrics (revenue, earnings, growth rates)
-- Future guidance and outlook statements
-- Strategic discussions and business updates
-
-**REMOVE (Irrelevant):**
-- Greetings and formalities ("Good morning everyone")
-- Procedural language ("I'll turn it over to our CFO")
-- Legal disclaimers ("Forward-looking statements are subject to risks...")
-
-**Method:** Rely on GPT's judgment to identify and extract relevant information
-
-### **3. Temporal Segmentation**
-❌ **NOT REQUIRED** in Version 2 (already completed in Version 1)
-
-### **4. Analysis Granularity**
+### **2. Analysis Granularity**
 - **Company-level sentiment** per earnings call event
-- **Output:** One sentiment label per company-presentation pair
-- **Important:** Generate sentiment BOTH:
-  - **Before filtering** (original text)
-  - **After filtering** (cleaned text)
-- **Purpose:** Compare how filtering affects sentiment
+- **Output:** One sentiment label per event
 
-### **5. Data Scope**
+### **3. Data Scope**
 - **Speaker Type:** `speakertypename == "Executives"` ONLY
 - **Component Type:** `transcriptcomponenttypename == "Presenter Speech"` ONLY
 - **Companies:** First 100 companies only
-- **Q&A:** Excluded for now (focus on presentations only)
+- **Events:** 803 unique earnings call events
 
-### **6. Deliverables**
-1. **Sentiment Results:** Pandas DataFrame saved as `.pkl` file with:
-   - Sentiment labels (positive/negative/neutral)
-   - Probabilities for each label
-   - Results BEFORE and AFTER filtering
-2. **Code:** All scripts with clear instructions on how to run them
-3. **Documentation:** 1-page explanation covering:
-   - What each column in the output represents
-   - Brief interpretation of results
-4. **Presentation:** Meeting to demonstrate code execution and explain results
+### **4. Deliverables**
+1. **Sentiment Results:** DataFrame saved as `.pkl` file with sentiment labels and probabilities
+2. **Code:** All scripts with clear instructions
+3. **Documentation:** Brief explanation of output columns and results
 
 ---
 
@@ -124,21 +93,14 @@ Analyze the **tone/language** used by executives when presenting earnings result
    ↓
 5. Aggregate by Event (803 events)
    ↓
-6a. GPT Sentiment (BEFORE filtering) → sentiment_before_filtering.pkl
-   ↓
-6b. GPT Content Filtering → filtered_texts.pkl
-   ↓
-6c. GPT Sentiment (AFTER filtering) → sentiment_after_filtering.pkl
-   ↓
-7. Merge Results → final_sentiment_results.pkl
+6. GPT Sentiment Analysis → sentiment_results.pkl
 ```
 
 ### **GPT Configuration**
-- **Model:** GPT-4o-mini (Azure OpenAI)
+- **Model:** GPT-4.1 (Azure OpenAI)
 - **Temperature:** 0.0 (deterministic)
-- **Token Cap:** 16,000 tokens per API call (safety limit)
-- **Cost Estimate:** ~$1-2 for entire analysis
-- **Output Format:** JSON with probabilities
+- **Output Format:** JSON with sentiment labels and probabilities
+- **Processing:** Async batch processing for performance
 
 ---
 
@@ -146,34 +108,35 @@ Analyze the **tone/language** used by executives when presenting earnings result
 
 ```
 zanista/
-├── .env                              # Azure OpenAI credentials
-├── .gitignore                        # Ignore data/venv/secrets
-├── requirements.txt                  # Python dependencies
-├── models.py                         # Azure OpenAI client setup
-├── models_enum.py                    # Model enumeration
+├── config/
+│   ├── models.py                    # Azure OpenAI client
+│   ├── pricing.py                   # Cost calculation
+│   └── models_enum.py               # Model enumeration
 │
-├── Data Files:
-│   ├── transcripts_2024.pkl         # Original full dataset
-│   ├── transcripts_first100.pkl     # First 100 companies
-│   ├── transcripts_cleaned.pkl      # Deduplicated (69,625 rows)
-│   └── transcripts_filtered_for_gpt.pkl  # Executives + Presenter Speech
+├── data/
+│   ├── raw/                         # Original dataset
+│   ├── processed/                   # Cleaned data
+│   ├── labeled/                     # Ground truth samples
+│   └── results/                     # Output files
 │
-├── Data Processing Scripts:
-│   ├── filter_data.py               # Extract first 100 companies
-│   ├── clean_data.py                # 3-stage deduplication
+├── data_processing/
+│   ├── 01_filter_companies.py       # Extract first 100 companies
+│   ├── 02_clean_data.py             # 3-stage deduplication
+│   ├── 03_prepare_for_sentiment.py  # Aggregate by event
 │   └── data_viewer.py               # Streamlit data viewer
 │
-├── Sentiment Analysis (To Build):
-│   ├── prepare_for_gpt.py           # Aggregate by event
-│   ├── sentiment_before.py          # Sentiment on original text
-│   ├── filter_content.py            # GPT content filtering
-│   ├── sentiment_after.py           # Sentiment on filtered text
-│   └── merge_results.py             # Combine all results
+├── sentiment_analysis/
+│   ├── prompts/
+│   │   └── sentiment_prompts.py     # Production prompt (85% accuracy)
+│   ├── sentiment_analyzer.py        # Main analyzer with async processing
+│   └── cost_logger.py               # API cost tracking
 │
-├── Documentation:
-│   ├── README.md                     # This file
-│   ├── Task_1.pdf                    # Original task description
-│   └── SETUP.md                      # Setup instructions
+├── labeling/
+│   └── label_reviewer.py            # Ground truth review tool
+│
+├── .env                             # Azure OpenAI credentials
+├── requirements.txt                 # Python dependencies
+└── README.md                        # This file
 ```
 
 ---
@@ -209,17 +172,16 @@ streamlit run data_viewer.py
 ### **4. Data Processing Pipeline**
 ```bash
 # 1. Extract first 100 companies (already done)
-python filter_data.py
+python data_processing/01_filter_companies.py
 
 # 2. Clean duplicates (already done)
-python clean_data.py
+python data_processing/02_clean_data.py
 
-# 3. Sentiment analysis (to be implemented)
-python prepare_for_gpt.py
-python sentiment_before.py
-python filter_content.py
-python sentiment_after.py
-python merge_results.py
+# 3. Prepare for sentiment analysis (already done)
+python data_processing/03_prepare_for_sentiment.py
+
+# 4. Run sentiment analysis
+python sentiment_analysis/sentiment_analyzer.py
 ```
 
 ---
@@ -271,18 +233,15 @@ Tested models on 20 samples:
 - [x] Data filtering (Executives + Presenter Speech)
 - [x] Event aggregation (803 events ready)
 - [x] Azure OpenAI client configuration
-- [x] Requirements clarification with client
-- [x] **Ground truth creation (20 samples labeled with balanced approach)**
-- [x] **Sentiment prompt development (7 iterations)**
-- [x] **Prompt validation (85% accuracy on test set)**
-- [x] **Cost tracking system implemented**
-- [x] **Project structure reorganized**
+- [x] Ground truth creation (20 samples labeled)
+- [x] Sentiment prompt development (7 iterations)
+- [x] Prompt validation (85% accuracy on test set)
+- [x] Cost tracking system implemented
 
-### **🔄 In Progress**
-- [ ] Review and finalize 20 ground truth labels
+### **🔄 Next Steps**
 - [ ] Run sentiment analysis on full 803 events
-- [ ] GPT content filtering
-- [ ] Results merging and comparison
+- [ ] Review results and validate quality
+- [ ] Generate final deliverables
 
 ### **📊 Expected Output Schema**
 ```python
@@ -292,26 +251,21 @@ Tested models on 20 samples:
     'transcriptid': int,
     'event_date': str,
     'headline': str,
+    'presentation_text': str,
+    'total_word_count': int,
     
-    # Before filtering
-    'original_text': str,
-    'original_word_count': int,
-    'sentiment_before': str,  # positive/negative/neutral
-    'positive_prob_before': float,
-    'negative_prob_before': float,
-    'neutral_prob_before': float,
+    # Sentiment results
+    'sentiment': str,  # positive/negative/neutral
+    'positive_prob': float,
+    'negative_prob': float,
+    'neutral_prob': float,
+    'reasoning': str,
     
-    # After filtering
-    'filtered_text': str,
-    'filtered_word_count': int,
-    'sentiment_after': str,
-    'positive_prob_after': float,
-    'negative_prob_after': float,
-    'neutral_prob_after': float,
-    
-    # Metadata
-    'tokens_used': int,
-    'processing_cost': float
+    # API usage
+    'input_tokens': int,
+    'output_tokens': int,
+    'total_tokens': int,
+    'cost': float
 }
 ```
 
@@ -319,21 +273,14 @@ Tested models on 20 samples:
 
 ## 💰 Cost Estimation
 
+- **Model:** GPT-4.1
 - **Total Events:** 803
-- **API Calls:** 803 (before) + 803 (filtering) + 803 (after) = 2,409 calls
-- **Average Tokens:** ~1,200 per call
-- **Total Tokens:** ~2.9M input + 0.3M output
-- **Estimated Cost:** $0.50 - $1.00 (using GPT-4o-mini)
+- **Average Tokens:** ~1,200 per event
+- **Estimated Cost:** ~$12.55 for full dataset
 
 ---
 
 ## 📞 Contact
 
 **Client:** Zanista.AI  
-**Product:** NewsWitch  
-**Project Lead:** [To be added]
-
----
-
-**Last Updated:** [Current Date]  
-**Version:** 2.0
+**Product:** NewsWitch
