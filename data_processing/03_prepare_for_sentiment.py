@@ -1,42 +1,31 @@
-"""
-STEP 1 & 2: Filter and Aggregate Dataset for Sentiment Analysis
-
-This script:
-1. Filters for Executives + Presenter Speech only
-2. Aggregates all speeches per event (transcriptid) into single text
-3. Creates clean dataset ready for GPT processing
-
-Output: One row per event with combined presentation text
-"""
-
 import pickle
 import pandas as pd
 from datetime import datetime
+from pathlib import Path
 
-print('=' * 100)
-print('PREPARE DATASET FOR SENTIMENT ANALYSIS - Steps 1 & 2')
-print('=' * 100)
+VERBOSE = False
+
+def vprint(*args, **kwargs):
+    """Print only if VERBOSE mode enabled"""
+    if VERBOSE:
+        print(*args, **kwargs)
+
 print(f'Started: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-print()
 
-# ============================================================================
 # STEP 1: Load and Filter Data
-# ============================================================================
-print('=' * 100)
-print('STEP 1: LOAD AND FILTER DATA')
-print('=' * 100)
+input_file = Path('transcripts_cleaned.pkl')
+if not input_file.exists():
+    print(f"ERROR: Input file not found: {input_file}")
+    print("Please run 02_clean_data.py first")
+    raise SystemExit(1)
 
 print('Loading cleaned dataset...')
 with open('transcripts_cleaned.pkl', 'rb') as f:
     df = pickle.load(f)
 
-print(f'✓ Loaded {len(df):,} rows from transcripts_cleaned.pkl')
-print()
+print(f'Loaded {len(df):,} rows')
 
-print('Applying filters:')
-print('  - speakertypename == "Executives"')
-print('  - transcriptcomponenttypename == "Presenter Speech"')
-print()
+vprint('Filtering for Executives + Presenter Speech...')
 
 # Filter for target data
 df_filtered = df[
@@ -44,21 +33,10 @@ df_filtered = df[
     (df['transcriptcomponenttypename'] == 'Presenter Speech')
 ].copy()
 
-print(f'✓ Filtered dataset:')
-print(f'  Rows: {len(df_filtered):,}')
-print(f'  Unique companies: {df_filtered["companyid"].nunique()}')
-print(f'  Unique events: {df_filtered["transcriptid"].nunique()}')
-print()
+print(f'Filtered: {len(df_filtered):,} rows | Companies: {df_filtered["companyid"].nunique()} | Events: {df_filtered["transcriptid"].nunique()}')
 
-# ============================================================================
 # STEP 2: Aggregate by Event
-# ============================================================================
-print('=' * 100)
-print('STEP 2: AGGREGATE SPEECHES BY EVENT')
-print('=' * 100)
-
-print('Grouping by transcriptid (event) and combining speeches...')
-print()
+vprint('Aggregating speeches by event...')
 
 # Sort by componentorder to preserve speech order
 df_filtered = df_filtered.sort_values(['transcriptid', 'componentorder'])
@@ -101,104 +79,22 @@ for transcript_id, group in df_filtered.groupby('transcriptid'):
 # Create new DataFrame
 df_aggregated = pd.DataFrame(aggregated_data)
 
-print(f'✓ Aggregation complete:')
-print(f'  Total events: {len(df_aggregated):,}')
-print(f'  Avg speeches per event: {df_aggregated["num_speeches"].mean():.1f}')
-print(f'  Avg speakers per event: {df_aggregated["num_speakers"].mean():.1f}')
-print(f'  Avg words per event: {df_aggregated["total_word_count"].mean():.0f}')
-print()
+print(f'Aggregated: {len(df_aggregated):,} events | Avg speeches={df_aggregated["num_speeches"].mean():.1f} | Avg words={df_aggregated["total_word_count"].mean():.0f}')
 
-# ============================================================================
-# DATA QUALITY SUMMARY
-# ============================================================================
-print('=' * 100)
-print('DATA QUALITY SUMMARY')
-print('=' * 100)
+vprint(f'\nWord count: min={df_aggregated["total_word_count"].min():,} median={df_aggregated["total_word_count"].median():.0f} max={df_aggregated["total_word_count"].max():,}')
+vprint(f'Speeches per event distribution:')
+vprint(df_aggregated["num_speeches"].value_counts().sort_index().head(10))
 
-print(f'\nWord count distribution:')
-print(f'  Min: {df_aggregated["total_word_count"].min():,} words')
-print(f'  25th percentile: {df_aggregated["total_word_count"].quantile(0.25):.0f} words')
-print(f'  Median: {df_aggregated["total_word_count"].median():.0f} words')
-print(f'  75th percentile: {df_aggregated["total_word_count"].quantile(0.75):.0f} words')
-print(f'  Max: {df_aggregated["total_word_count"].max():,} words')
-
-print(f'\nSpeeches per event distribution:')
-print(df_aggregated["num_speeches"].value_counts().sort_index().head(10))
-
-print(f'\nSpeakers per event distribution:')
-print(df_aggregated["num_speakers"].value_counts().sort_index())
-
-print(f'\nTop 10 companies by number of events:')
-company_counts = df_aggregated['companyname'].value_counts().head(10)
-for company, count in company_counts.items():
-    print(f'  {company}: {count} events')
-
-print()
-
-# ============================================================================
-# SAMPLE PREVIEW
-# ============================================================================
-print('=' * 100)
-print('SAMPLE EVENT PREVIEW')
-print('=' * 100)
-
-# Show one sample
+vprint('\nSample event preview:')
 sample = df_aggregated.iloc[0]
+vprint(f'  {sample["companyname"]} - {sample["headline"][:60]}')
+vprint(f'  {sample["num_speeches"]} speeches, {sample["total_word_count"]:,} words')
 
-print(f'\nSample Event:')
-print(f'  Company: {sample["companyname"]}')
-print(f'  Headline: {sample["headline"]}')
-print(f'  Date: {sample["event_date"]}')
-print(f'  Event Type: {sample["event_type"]}')
-print(f'  Number of speeches: {sample["num_speeches"]}')
-print(f'  Number of speakers: {sample["num_speakers"]}')
-print(f'  Total words: {sample["total_word_count"]:,}')
-print(f'  Speakers: {", ".join(sample["speaker_names"])}')
-
-print(f'\n  First 500 characters of combined text:')
-print(f'  "{sample["presentation_text"][:500]}..."')
-
-print()
-
-# ============================================================================
-# SAVE AGGREGATED DATASET
-# ============================================================================
-print('=' * 100)
-print('SAVING AGGREGATED DATASET')
-print('=' * 100)
-
+# Save aggregated dataset
 output_file = 'transcripts_aggregated_for_gpt.pkl'
-
-print(f'Saving to: {output_file}')
 with open(output_file, 'wb') as f:
     pickle.dump(df_aggregated, f)
 
-print(f'✓ Saved {len(df_aggregated):,} events')
-print()
-
-# ============================================================================
-# FINAL SUMMARY
-# ============================================================================
-print('=' * 100)
-print('STEPS 1 & 2 COMPLETE')
-print('=' * 100)
-
-print(f'\n✅ Dataset prepared for sentiment analysis:')
-print(f'   Input: transcripts_cleaned.pkl ({len(df):,} rows)')
-print(f'   Filtered: {len(df_filtered):,} executive presenter speeches')
-print(f'   Aggregated: {len(df_aggregated):,} events')
-print(f'   Output: {output_file}')
-
-print(f'\n📊 Dataset characteristics:')
-print(f'   Companies: {df_aggregated["companyid"].nunique()}')
-print(f'   Events: {len(df_aggregated):,}')
-print(f'   Avg words per event: {df_aggregated["total_word_count"].mean():.0f}')
-print(f'   Avg speeches per event: {df_aggregated["num_speeches"].mean():.1f}')
-
-print(f'\n🎯 Next Steps:')
-print(f'   Step 3: GPT Content Filtering ({len(df_aggregated):,} API calls)')
-print(f'   Step 4: Sentiment Analysis BEFORE filtering ({len(df_aggregated):,} API calls)')
-print(f'   Step 5: Sentiment Analysis AFTER filtering ({len(df_aggregated):,} API calls)')
-
-print(f'\n✓ Completed: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-print('=' * 100)
+print(f'\nSaved {len(df_aggregated):,} events to: {output_file}')
+print(f'Companies: {df_aggregated["companyid"].nunique()} | Events: {len(df_aggregated):,} | Avg words/event: {df_aggregated["total_word_count"].mean():.0f}')
+print(f'Completed: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')

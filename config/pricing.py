@@ -1,15 +1,9 @@
-"""
-Model Pricing Configuration
-All prices are per 1 million tokens (as of Nov 2024)
-"""
-
 from dataclasses import dataclass
 from typing import Dict
 
 
 @dataclass
 class ModelPricing:
-    """Pricing structure for a model"""
     input_price: float
     output_price: float
     cached_input_price: float = 0.0
@@ -17,8 +11,6 @@ class ModelPricing:
     
     def calculate_cost(self, input_tokens: int, output_tokens: int, 
                       cached_tokens: int = 0) -> Dict[str, float]:
-        """Calculate cost breakdown"""
-        
         regular_input = max(0, input_tokens - cached_tokens)
         
         input_cost = (regular_input / 1_000_000) * self.input_price
@@ -61,6 +53,5 @@ MODEL_PRICING = {
 
 
 def get_model_pricing(model_name: str) -> ModelPricing:
-    """Get pricing for a model"""
     model_key = model_name.lower()
     return MODEL_PRICING.get(model_key, MODEL_PRICING['gpt-4.1'])

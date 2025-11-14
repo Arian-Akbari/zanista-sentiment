@@ -13,8 +13,6 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 
 class CostLogger:
-    """Track and log API costs"""
-    
     def __init__(self, log_file="data/results/cost_log.jsonl"):
         self.log_file = Path(log_file)
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -61,18 +59,14 @@ class CostLogger:
     
     def print_session_summary(self):
         """Print summary of session costs"""
-        
         summary = self.get_session_summary()
         
-        print(f"\n{'='*80}")
-        print("SESSION COST SUMMARY")
-        print(f"{'='*80}")
+        print("\nSESSION COST SUMMARY")
         print(f"Total requests:    {summary['total_requests']}")
         print(f"Input tokens:      {summary['total_input_tokens']:,}")
         print(f"Output tokens:     {summary['total_output_tokens']:,}")
         print(f"Total tokens:      {summary['total_input_tokens'] + summary['total_output_tokens']:,}")
         print(f"Total cost:        ${summary['total_cost']:.4f}")
-        print(f"{'='*80}")
     
     @staticmethod
     def load_all_logs(log_file="data/results/cost_log.jsonl") -> List[Dict]:

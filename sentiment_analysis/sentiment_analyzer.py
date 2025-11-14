@@ -23,11 +23,12 @@ from datetime import datetime
 class SentimentAnalyzer:
     """Sentiment analyzer with async batch processing and cost tracking"""
     
-    def __init__(self, model_name="gpt-4.1"):
+    def __init__(self, model_name="gpt-4.1", verbose=False):
         self.client = get_async_client()
         self.model = model_name
         self.pricing = get_model_pricing(model_name)
         self.logger = CostLogger()
+        self.verbose = verbose
         
     async def analyze_sentiment_async(self, presentation_text: str, company_name: str = "", 
                                      event_date: str = "", temperature: float = 0.0) -> Dict:
@@ -65,7 +66,10 @@ class SentimentAnalyzer:
             )
             
             # Parse result
-            result = json.loads(response.choices[0].message.content)
+            try:
+                result = json.loads(response.choices[0].message.content)
+            except (json.JSONDecodeError, AttributeError, TypeError):
+                result = {}
             
             # Validate sentiment
             sentiment = result.get('sentiment', 'neutral').lower()
@@ -98,7 +102,8 @@ class SentimentAnalyzer:
             }
             
         except Exception as e:
-            print(f"\n   Error: {e}")
+            if self.verbose:
+                print(f"\n   Error analyzing {company_name}: {e}")
             return {
                 'sentiment': 'neutral',
                 'positive_prob': 0.0,
@@ -124,7 +129,8 @@ class SentimentAnalyzer:
             tasks.append((idx, row, task))
         
         # Execute all tasks in parallel
-        print(f"Analyzing {len(tasks)} events in parallel...")
+        if self.verbose:
+            print(f"Analyzing {len(tasks)} events in parallel...")
         results = await asyncio.gather(*[task for _, _, task in tasks])
         
         # Add metadata
@@ -140,12 +146,27 @@ class SentimentAnalyzer:
     async def test_on_ground_truth_async(self, ground_truth_path: str) -> Dict:
         """Test prompt on ground truth dataset with async batch processing"""
         
-        print(f"\n{'='*80}")
-        print(f"TESTING SENTIMENT ANALYZER")
-        print(f"Model: {self.model} | Async Batch Processing")
-        print(f"{'='*80}\n")
+        if self.verbose:
+            print(f"\nTESTING SENTIMENT ANALYZER")
+            print(f"Model: {self.model} | Async Batch Processing\n")
         
         # Load ground truth
+        ground_truth_file = Path(ground_truth_path)
+        if not ground_truth_file.exists():
+            return {
+                'accuracy': 0,
+                'results': pd.DataFrame(),
+                'mismatches': pd.DataFrame(),
+                'total_cost': 0,
+                'total_input_tokens': 0,
+                'total_output_tokens': 0,
+                'total_tokens': 0,
+                'processing_time': 0,
+                'estimated_full_cost': 0,
+                'estimated_full_tokens': 0,
+                'error': f'Ground truth file not found: {ground_truth_path}'
+            }
+        
         with open(ground_truth_path, 'rb') as f:
             df_truth = pickle.load(f)
         
@@ -175,15 +196,16 @@ class SentimentAnalyzer:
             
             if is_correct:
                 correct += 1
-                status = "✓"
+                status = "MATCH"
             else:
-                status = "✗"
+                status = "MISS"
             
             total_input_tokens += result['input_tokens']
             total_output_tokens += result['output_tokens']
             total_cost += result['cost']
             
-            print(f"{status} {result['company'][:40]:40s} | Truth:{truth_label:8s} GPT:{gpt_label:8s}")
+            if self.verbose:
+                print(f"{status} {result['company'][:40]:40s} | Truth:{truth_label:8s} GPT:{gpt_label:8s}")
             
             results_list.append({
                 'company': result['company'],
@@ -205,56 +227,57 @@ class SentimentAnalyzer:
         # Calculate metrics
         accuracy = correct / total * 100
         
-        print(f"\n{'='*80}")
-        print(f"RESULTS")
-        print(f"{'='*80}")
-        print(f"Processing time: {duration:.1f} seconds")
-        print(f"Accuracy: {correct}/{total} = {accuracy:.1f}%\n")
+        if self.verbose:
+            print(f"\nRESULTS")
+            print(f"Processing time: {duration:.1f} seconds")
+            print(f"Accuracy: {correct}/{total} = {accuracy:.1f}%\n")
         
         # Token usage
         total_tokens = total_input_tokens + total_output_tokens
-        print(f"TOKEN USAGE:")
-        print(f"  Input:  {total_input_tokens:,} tokens")
-        print(f"  Output: {total_output_tokens:,} tokens")
-        print(f"  Total:  {total_tokens:,} tokens")
-        print(f"  Avg:    {total_tokens / total:,.0f} tokens/event\n")
+        if self.verbose:
+            print(f"TOKEN USAGE:")
+            print(f"  Input:  {total_input_tokens:,} tokens")
+            print(f"  Output: {total_output_tokens:,} tokens")
+            print(f"  Total:  {total_tokens:,} tokens")
+            print(f"  Avg:    {total_tokens / total:,.0f} tokens/event\n")
         
         # Cost breakdown
         input_cost = (total_input_tokens / 1_000_000) * self.pricing.input_price
         output_cost = (total_output_tokens / 1_000_000) * self.pricing.output_price
         
-        print(f"COST ({self.model}):")
-        print(f"  Input:  ${input_cost:.4f} ({total_input_tokens:,} × ${self.pricing.input_price}/1M)")
-        print(f"  Output: ${output_cost:.4f} ({total_output_tokens:,} × ${self.pricing.output_price}/1M)")
-        print(f"  Total:  ${total_cost:.4f}\n")
+        if self.verbose:
+            print(f"COST ({self.model}):")
+            print(f"  Input:  ${input_cost:.4f} ({total_input_tokens:,} × ${self.pricing.input_price}/1M)")
+            print(f"  Output: ${output_cost:.4f} ({total_output_tokens:,} × ${self.pricing.output_price}/1M)")
+            print(f"  Total:  ${total_cost:.4f}\n")
         
         # Extrapolate to full dataset
         events_full = 803
         full_cost = (total_cost / total) * events_full
         full_tokens = (total_tokens / total) * events_full
         
-        print(f"EXTRAPOLATION TO {events_full} EVENTS:")
-        print(f"  Tokens: {full_tokens:,.0f}")
-        print(f"  Cost:   ${full_cost:.2f}\n")
+        if self.verbose:
+            print(f"EXTRAPOLATION TO {events_full} EVENTS:")
+            print(f"  Tokens: {full_tokens:,.0f}")
+            print(f"  Cost:   ${full_cost:.2f}\n")
         
         # Confusion matrix
         df_results = pd.DataFrame(results_list)
-        print("CONFUSION MATRIX:")
-        confusion = pd.crosstab(
-            df_results['ground_truth'], 
-            df_results['gpt_sentiment'],
-            rownames=['Truth'],
-            colnames=['GPT'],
-            margins=True
-        )
-        print(confusion)
+        if self.verbose:
+            print("CONFUSION MATRIX:")
+            confusion = pd.crosstab(
+                df_results['ground_truth'], 
+                df_results['gpt_sentiment'],
+                rownames=['Truth'],
+                colnames=['GPT'],
+                margins=True
+            )
+            print(confusion)
         
         # Show mismatches
         mismatches = df_results[~df_results['correct']]
-        if len(mismatches) > 0:
-            print(f"\n{'='*80}")
-            print(f"MISMATCHES ({len(mismatches)} events):")
-            print(f"{'='*80}")
+        if len(mismatches) > 0 and self.verbose:
+            print(f"\nMISMATCHES ({len(mismatches)} events):")
             for idx, row in mismatches.iterrows():
                 print(f"\n{row['company'][:50]}")
                 print(f"  Truth: {row['ground_truth'].upper()} | GPT: {row['gpt_sentiment'].upper()}")
@@ -263,7 +286,8 @@ class SentimentAnalyzer:
                 print(f"  Reason: {row['gpt_reasoning'][:100]}...")
         
         # Session summary
-        self.logger.print_session_summary()
+        if self.verbose:
+            self.logger.print_session_summary()
         
         return {
             'accuracy': accuracy,
