@@ -1,8 +1,3 @@
-"""
-Cost Logger for API Usage Tracking
-Logs all API calls with token usage and costs
-"""
-
 import json
 import sys
 from datetime import datetime

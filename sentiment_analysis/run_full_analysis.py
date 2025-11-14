@@ -47,8 +47,8 @@ class ProductionSentimentAnalyzer:
                         model=self.model,
                         temperature=temperature,
                         messages=[
-                            {"role": "system", "content": get_sentiment_prompt()},
-                            {"role": "user", "content": get_user_prompt(presentation_text, company_name, event_date)}
+                            {'role': 'system', 'content': get_sentiment_prompt()},
+                            {'role': 'user', 'content': get_user_prompt(presentation_text, company_name, event_date)}
                         ],
                         response_format={"type": "json_object"}
                     ),
@@ -168,15 +168,9 @@ class ProductionSentimentAnalyzer:
             save_every: Save progress every N events (default: 100)
         """
         
-        print(f"\n{'='*80}")
-        print(f"SENTIMENT ANALYSIS - FULL DATASET")
-        print(f"{'='*80}")
-        print(f"Model: {self.model}")
-        print(f"Timeout: {self.timeout}s per request")
-        print(f"Max retries: {self.max_retries}")
-        print(f"Batch size: {batch_size} concurrent requests")
-        print(f"Auto-save every: {save_every} events")
-        print(f"{'='*80}\n")
+        print(f"\nSENTIMENT ANALYSIS - FULL DATASET")
+        print(f"Model: {self.model} | Timeout: {self.timeout}s | Max retries: {self.max_retries}")
+        print(f"Batch size: {batch_size} concurrent | Auto-save every: {save_every} events\n")
         
         # Load dataset
         print(f"📂 Loading dataset from: {data_path}")
@@ -280,28 +274,19 @@ class ProductionSentimentAnalyzer:
         end_time = datetime.now()
         total_duration = (end_time - start_time).total_seconds()
         
-        print(f"\n{'='*80}")
-        print(f"ANALYSIS COMPLETE")
-        print(f"{'='*80}")
-        print(f"Total events: {self.total_count}")
-        print(f"Successful: {self.completed_count} ({self.completed_count/self.total_count*100:.1f}%)")
-        print(f"Failed: {self.failed_count} ({self.failed_count/self.total_count*100:.1f}%)")
-        print(f"Processing time: {total_duration/60:.1f} minutes")
-        print(f"Average speed: {self.completed_count/total_duration:.2f} events/sec")
-        print(f"{'='*80}\n")
+        print(f"\nANALYSIS COMPLETE")
+        print(f"Total: {self.total_count} | Success: {self.completed_count} ({self.completed_count/self.total_count*100:.1f}%) | Failed: {self.failed_count}")
+        print(f"Time: {total_duration/60:.1f} min | Speed: {self.completed_count/total_duration:.2f} events/sec\n")
         
         # Cost summary
         self.logger.print_session_summary()
         
         # Distribution of sentiments
         df_results = pd.DataFrame(all_results)
-        print(f"\n{'='*80}")
-        print(f"SENTIMENT DISTRIBUTION")
-        print(f"{'='*80}")
+        print(f"\nSENTIMENT DISTRIBUTION")
         sentiment_counts = df_results['sentiment'].value_counts()
         for sentiment, count in sentiment_counts.items():
             print(f"{sentiment.upper():10s}: {count:4d} ({count/len(df_results)*100:5.1f}%)")
-        print(f"{'='*80}\n")
         
         # Save final results
         print(f"💾 Final save to: {output_file}")

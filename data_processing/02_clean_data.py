@@ -6,7 +6,6 @@ from pathlib import Path
 VERBOSE = False
 
 def vprint(*args, **kwargs):
-    """Print only if VERBOSE mode enabled"""
     if VERBOSE:
         print(*args, **kwargs)
 
@@ -48,7 +47,7 @@ within_transcript_duplicates = df[df.duplicated(subset=['transcriptid', 'compone
 vprint(f'Found {len(within_transcript_duplicates):,} rows that are duplicates within their transcript')
 
 # Remove within-transcript duplicates
-df_stage1 = df.drop_duplicates(subset=['transcriptid', 'componenttext'], keep='first')
+df_stage1 = df.drop_duplicates(subset=['transcriptid', 'componenttext'], keep='first').copy()
 
 stage1_after = len(df_stage1)
 stage1_removed = stage1_before - stage1_after
@@ -156,7 +155,8 @@ vprint('\nComponent type distribution:')
 vprint(df_clean['transcriptcomponenttypename'].value_counts())
 
 # Save cleaned data
-output_file = 'transcripts_cleaned.pkl'
+output_file = Path('data/processed/transcripts_cleaned.pkl')
+output_file.parent.mkdir(parents=True, exist_ok=True)
 with open(output_file, 'wb') as f:
     pickle.dump(df_clean, f)
 

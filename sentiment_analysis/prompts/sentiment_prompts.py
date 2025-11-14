@@ -1,15 +1,4 @@
-"""
-Sentiment Analysis Prompt
-Production-ready generalized prompt (85% accuracy validated)
-"""
-
-
 def get_sentiment_prompt():
-    """
-    FINAL GENERALIZED PROMPT
-    Achieved 85% accuracy on 20-sample test set with GPT-4.1
-    Production-ready for any earnings call
-    """
     return """Classify earnings call presentation sentiment: POSITIVE, NEUTRAL, or NEGATIVE.
 
 CLASSIFICATION FRAMEWORK:
@@ -72,9 +61,8 @@ OUTPUT (JSON only):
 }"""
 
 
-def get_user_prompt(presentation_text: str, company_name: str = "", 
-                    event_date: str = "") -> str:
-    """Create user prompt for sentiment analysis"""
+def get_user_prompt(presentation_text: str, company_name: str = '', 
+                    event_date: str = '') -> str:
     return f"""Analyze this presentation and return JSON with sentiment classification:
 
 Company: {company_name}

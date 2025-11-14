@@ -1,14 +1,9 @@
-"""
-Sentiment Analyzer for Earnings Call Presentations
-Async batch processing with comprehensive cost tracking
-"""
-
 import sys
 import pickle
 import json
 import asyncio
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -21,26 +16,22 @@ from datetime import datetime
 
 
 class SentimentAnalyzer:
-    """Sentiment analyzer with async batch processing and cost tracking"""
-    
-    def __init__(self, model_name="gpt-4.1", verbose=False):
+    def __init__(self, model_name='gpt-4.1', verbose=False):
         self.client = get_async_client()
         self.model = model_name
         self.pricing = get_model_pricing(model_name)
         self.logger = CostLogger()
         self.verbose = verbose
         
-    async def analyze_sentiment_async(self, presentation_text: str, company_name: str = "", 
-                                     event_date: str = "", temperature: float = 0.0) -> Dict:
-        """Analyze sentiment of a single presentation"""
-        
+    async def analyze_sentiment_async(self, presentation_text: str, company_name: str = '', 
+                                     event_date: str = '', temperature: float = 0.0) -> Dict:
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 temperature=temperature,
                 messages=[
-                    {"role": "system", "content": get_sentiment_prompt()},
-                    {"role": "user", "content": get_user_prompt(presentation_text, company_name, event_date)}
+                    {'role': 'system', 'content': get_sentiment_prompt()},
+                    {'role': 'user', 'content': get_user_prompt(presentation_text, company_name, event_date)}
                 ],
                 response_format={"type": "json_object"}
             )
