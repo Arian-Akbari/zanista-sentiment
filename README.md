@@ -36,6 +36,7 @@ Analyzed executive tone during earnings call presentations using GPT-4.1. Classi
 **Success rate:** 100% (0 failures)
 
 **Sentiment Distribution:**
+
 - Positive: 469 (58.4%)
 - Neutral: 267 (33.3%)
 - Negative: 67 (8.3%)
@@ -49,6 +50,7 @@ Analyzed executive tone during earnings call presentations using GPT-4.1. Classi
 ## Complete Analysis Pipeline
 
 ### Setup
+
 ```bash
 # Activate virtual environment
 source venv/bin/activate
@@ -72,34 +74,55 @@ bash run_pipeline.sh
 ### Run Individual Steps (Manual)
 
 **Step 1: Filter to First 100 Companies**
+
 ```bash
 python data_processing/01_filter_companies.py
 # Output: v2_transcripts_first100.pkl
 ```
 
 **Step 2: Clean Duplicates**
+
 ```bash
 python data_processing/02_clean_data.py
 # Output: data/processed/v2_transcripts_cleaned.pkl
 ```
 
 **Step 3: Filter & Aggregate for Sentiment**
+
 ```bash
 python data_processing/03_prepare_for_sentiment.py
 # Output: data/processed/v2_transcripts_aggregated_for_gpt.pkl
 ```
 
 **Step 4: Run Sentiment Analysis**
+
 ```bash
 python run_sentiment_analysis.py
 # Output: data/results/v2_sentiment_results.pkl
 # ⚠️  WARNING: This costs ~$20 via Azure OpenAI API
 ```
 
-### View Data
+---
+
+## Data Viewers
+
+### Results Dashboard
+```bash
+streamlit run view_results_streamlit.py
+```
+Interactive web dashboard with 6 tabs: Overview (charts & metrics), Data Table (customizable columns), Search & Filter, Event Details, Raw Data Browser (all fields paginated), Company Reports (per-company sentiment distribution & stats). Includes CSV/JSON export.
+
+### Raw Data Viewer
 ```bash
 streamlit run data_processing/data_viewer.py
 ```
+View raw and intermediate processed data at different pipeline stages (cleaned datasets, aggregated data).
+
+### Ground Truth Labeling Tool
+```bash
+streamlit run labeling/label_reviewer.py
+```
+Interactive tool for manually labeling events to create ground truth dataset for model validation.
 
 ---
 
