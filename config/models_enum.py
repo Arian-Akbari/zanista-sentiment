@@ -6,6 +6,7 @@ class AzureModels(Enum):
     GPT_35_TURBO_8K = "gpt-35-turbo-8k"
     GPT_4_TURBO_PREVIEW_AZURE = "gpt-4-turbo-preview-azure"
     GPT_4_1 = "gpt-4.1"
+    GPT_4_1_MINI = "gpt-4.1-mini"
     GPT_4_5_PREVIEW = "gpt-4.5-preview"
     GPT_4O = "gpt-4o"
     GPT_4O_MINI = "gpt-4o-mini"

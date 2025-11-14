@@ -18,11 +18,11 @@ st.set_page_config(
 # Load labeled dataset
 @st.cache_data
 def load_data():
-    with open('sample_20_labeled.pkl', 'rb') as f:
+    with open('data/labeled/sample_20_labeled.pkl', 'rb') as f:
         return pickle.load(f)
 
 def save_data(df):
-    with open('sample_20_labeled.pkl', 'wb') as f:
+    with open('data/labeled/sample_20_labeled.pkl', 'wb') as f:
         pickle.dump(df, f)
 
 # Initialize session state
