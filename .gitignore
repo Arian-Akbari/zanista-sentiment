@@ -1,0 +1,53 @@
+# Data files (general patterns)
+*.pkl
+*.csv
+*.json
+*.xlsx
+*.xls
+
+# PDFs and documents
+*.pdf
+*.docx
+*.doc
+
+# Specific data files in this project
+transcripts_2024.pkl
+transcripts_first100.pkl
+Confidential PLEASE DO NOT SHARE (1).pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Output/Results
+output/
+results/
+logs/
+*.log
+
+# Sensitive
+.env
+*.key
+credentials.json
