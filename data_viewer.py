@@ -6,7 +6,7 @@ st.set_page_config(page_title="Transcript Data Viewer", layout="wide")
 
 @st.cache_data
 def load_data():
-    with open('transcripts_first100.pkl', 'rb') as f:
+    with open('transcripts_cleaned.pkl', 'rb') as f:
         df = pickle.load(f)
     
     if df.columns.duplicated().any():
@@ -16,7 +16,7 @@ def load_data():
 
 df = load_data()
 
-st.title("📊 Earning Call Transcripts - First 100 Companies")
+st.title("📊 Earning Call Transcripts - First 100 Companies (CLEANED DATA)")
 
 st.sidebar.header("🔍 Filters")
 companies = sorted(df['companyname'].dropna().unique())
@@ -108,127 +108,238 @@ with tab2:
             st.write(f"**Event Type:** {transcript_data.iloc[0]['keydeveventtypename']}")
             st.write(f"**Components:** {len(transcript_data)}")
         
+        # Check for duplicates in this specific transcript
+        transcript_duplicates = transcript_data[transcript_data.duplicated(subset=['componenttext'], keep=False)]
+        if len(transcript_duplicates) > 0:
+            st.warning(f"⚠️ {len(transcript_duplicates)} duplicate components found in this transcript!")
+        else:
+            st.success("✅ No duplicates in this transcript")
+        
         st.markdown("---")
         st.subheader("📝 Full Transcript (in order)")
         
         for idx, row in transcript_data.iterrows():
             speaker_emoji = "👔" if row['speakertypename'] == "Executives" else "📊" if row['speakertypename'] == "Analysts" else "📢"
+            
+            # Check if this specific component is duplicated
+            is_duplicate = len(transcript_data[transcript_data['componenttext'] == row['componenttext']]) > 1
+            duplicate_badge = " 🔁 DUPLICATE" if is_duplicate else ""
+            
             with st.expander(
                 f"{speaker_emoji} Component #{row['componentorder']} - {row['transcriptpersonname']} "
-                f"({row['speakertypename']}, {row['transcriptcomponenttypename']}, {row['word_count']} words)",
+                f"({row['speakertypename']}, {row['transcriptcomponenttypename']}, {row['word_count']} words){duplicate_badge}",
                 expanded=False
             ):
                 st.markdown(f"**Speaker:** {row['transcriptpersonname']}")
                 st.markdown(f"**Type:** {row['speakertypename']} - {row['transcriptcomponenttypename']}")
                 st.markdown(f"**Word Count:** {row['word_count']}")
+                if is_duplicate:
+                    st.error("⚠️ This exact text appears multiple times in this transcript!")
                 st.markdown("**Full Text:**")
                 st.text_area("", row['componenttext'], height=200, key=f"text_{idx}", label_visibility="collapsed")
 
 with tab3:
-    st.header("Raw Data Explorer")
+    st.header("🔎 Raw Data Explorer")
     
-    st.subheader("🔧 Customize Columns to Display")
-    all_columns = df.columns.tolist()
-    default_cols = ['companyname', 'headline', 'mostimportantdateutc', 'speakertypename', 
-                    'transcriptcomponenttypename', 'transcriptpersonname', 'componentorder', 
-                    'word_count', 'componenttextpreview']
+    st.info("📌 Showing ALL columns in logical order for maximum understanding. Use sidebar filters to narrow down data.")
     
-    selected_columns = st.multiselect(
-        "Select columns to display",
-        all_columns,
-        default=default_cols
+    # Define optimal column order for understanding
+    ordered_columns = [
+        # 🏢 Company Information
+        'companyid',
+        'companyname',
+        
+        # 📅 Event Information  
+        'keydevid',
+        'keydeveventtypename',
+        'headline',
+        'mostimportantdateutc',
+        'mostimportanttimeutc',
+        
+        # 📄 Transcript Information
+        'transcriptid',
+        'transcriptcollectiontypeid',
+        'transcriptcollectiontypename',
+        'transcriptpresentationtypeid',
+        'transcriptpresentationtypename',
+        'transcriptcreationdate_utc',
+        'transcriptcreationtime_utc',
+        'audiolengthsec',
+        
+        # 💬 Component Information
+        'transcriptcomponentid',
+        'componentorder',
+        'transcriptcomponenttypeid',
+        'transcriptcomponenttypename',
+        
+        # 🎤 Speaker Information
+        'transcriptpersonid',
+        'transcriptpersonname',
+        'speakertypeid',
+        'speakertypename',
+        'companyofperson',
+        'proid',
+        
+        # 📝 Text Content
+        'componenttextpreview',
+        'word_count',
+        'componenttext'
+    ]
+    
+    st.subheader("📊 Complete Data Table")
+    st.caption("All 29 columns displayed in logical order: Company → Event → Transcript → Component → Speaker → Text")
+    
+    st.dataframe(filtered_df[ordered_columns], use_container_width=True, height=500)
+    
+    st.download_button(
+        label="⬇️ Download Filtered Data as CSV",
+        data=filtered_df[ordered_columns].to_csv(index=False),
+        file_name="filtered_transcripts.csv",
+        mime="text/csv"
     )
     
-    if selected_columns:
-        st.dataframe(filtered_df[selected_columns], use_container_width=True, height=500)
-        
-        st.download_button(
-            label="⬇️ Download Filtered Data as CSV",
-            data=filtered_df[selected_columns].to_csv(index=False),
-            file_name="filtered_transcripts.csv",
-            mime="text/csv"
-        )
+    st.markdown("---")
+    st.subheader("🔍 Detailed Row Inspector")
+    st.caption("Select any row number to see ALL fields with explanations and duplicate detection")
     
-    st.subheader("🔍 Detailed Row Viewer")
-    row_num = st.number_input("Enter row number to view details", min_value=0, max_value=len(filtered_df)-1, value=0)
+    row_num = st.number_input("Enter row number to inspect", min_value=0, max_value=len(filtered_df)-1, value=0)
     
     if row_num is not None:
         row_data = filtered_df.iloc[row_num]
+        
+        # Check if this component text is duplicated
+        component_duplicates = df[df['componenttext'] == row_data['componenttext']]
+        is_duplicate = len(component_duplicates) > 1
+        
+        if is_duplicate:
+            st.error(f"🔁 DUPLICATE DETECTED: This exact text appears {len(component_duplicates)} times in the dataset!")
+            st.caption("See 'Duplicate Details' section below for all occurrences")
+        else:
+            st.success("✅ This component text is unique in the dataset")
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("### 🏢 Company Information")
-            st.write(f"**Company Name:** {row_data['companyname']}")
             st.write(f"**Company ID:** {row_data['companyid']}")
+            st.write(f"**Company Name:** {row_data['companyname']}")
             st.write(f"**Company of Person:** {row_data['companyofperson']}")
             
+            st.markdown("---")
             st.markdown("### 📅 Event Information")
-            st.write(f"**Headline:** {row_data['headline']}")
+            st.write(f"**Key Dev ID:** {row_data['keydevid']}")
             st.write(f"**Event Type:** {row_data['keydeveventtypename']}")
-            st.write(f"**Date:** {row_data['mostimportantdateutc']}")
-            st.write(f"**Time:** {row_data['mostimportanttimeutc']}")
+            st.write(f"**Headline:** {row_data['headline']}")
+            st.write(f"**Date (UTC):** {row_data['mostimportantdateutc']}")
+            st.write(f"**Time (UTC):** {row_data['mostimportanttimeutc']}")
             
-            st.markdown("### 🎤 Speaker Information")
-            st.write(f"**Person Name:** {row_data['transcriptpersonname']}")
-            st.write(f"**Speaker Type:** {row_data['speakertypename']}")
-            st.write(f"**Person ID:** {row_data['transcriptpersonid']}")
-        
-        with col2:
+            st.markdown("---")
             st.markdown("### 📄 Transcript Information")
             st.write(f"**Transcript ID:** {row_data['transcriptid']}")
+            st.write(f"**Collection Type ID:** {row_data['transcriptcollectiontypeid']}")
             st.write(f"**Collection Type:** {row_data['transcriptcollectiontypename']}")
+            st.write(f"**Presentation Type ID:** {row_data['transcriptpresentationtypeid']}")
             st.write(f"**Presentation Type:** {row_data['transcriptpresentationtypename']}")
-            st.write(f"**Creation Date:** {row_data['transcriptcreationdate_utc']}")
-            st.write(f"**Audio Length (sec):** {row_data['audiolengthsec']}")
-            
-            st.markdown("### 💬 Component Information")
-            st.write(f"**Component Order:** {row_data['componentorder']}")
-            st.write(f"**Component Type:** {row_data['transcriptcomponenttypename']}")
-            st.write(f"**Word Count:** {row_data['word_count']}")
+            st.write(f"**Creation Date (UTC):** {row_data['transcriptcreationdate_utc']}")
+            st.write(f"**Creation Time (UTC):** {row_data['transcriptcreationtime_utc']}")
+            st.write(f"**Audio Length (seconds):** {row_data['audiolengthsec']}")
         
-        st.markdown("### 📝 Full Component Text")
+        with col2:
+            st.markdown("### 💬 Component Information")
+            st.write(f"**Component ID:** {row_data['transcriptcomponentid']}")
+            st.write(f"**Component Order:** ⭐ {row_data['componentorder']} (position in conversation)")
+            st.write(f"**Component Type ID:** {row_data['transcriptcomponenttypeid']}")
+            st.write(f"**Component Type:** ⭐ {row_data['transcriptcomponenttypename']}")
+            
+            st.markdown("---")
+            st.markdown("### 🎤 Speaker Information")
+            st.write(f"**Person ID:** {row_data['transcriptpersonid']}")
+            st.write(f"**Person Name:** {row_data['transcriptpersonname']}")
+            st.write(f"**Speaker Type ID:** {row_data['speakertypeid']}")
+            st.write(f"**Speaker Type:** ⭐ {row_data['speakertypename']}")
+            st.write(f"**Pro ID:** {row_data['proid']}")
+            
+            st.markdown("---")
+            st.markdown("### 📝 Text Content Metadata")
+            st.write(f"**Word Count:** {row_data['word_count']} words")
+            st.write(f"**Text Preview:** {row_data['componenttextpreview']}")
+        
+        st.markdown("---")
+        st.markdown("### 📝 Full Component Text (What Was Actually Said)")
         st.text_area("", row_data['componenttext'], height=300, key="detailed_text", label_visibility="collapsed")
+        
+        # Show duplicate details if this is a duplicate
+        if is_duplicate:
+            st.markdown("---")
+            st.markdown("### 🔁 Duplicate Details")
+            st.warning(f"This exact text appears in {len(component_duplicates)} places:")
+            
+            dup_display = component_duplicates[['companyname', 'headline', 'mostimportantdateutc', 
+                                                 'transcriptid', 'componentorder', 'speakertypename', 
+                                                 'transcriptpersonname']].copy()
+            dup_display['transcriptid'] = dup_display['transcriptid'].astype(int)
+            dup_display['componentorder'] = dup_display['componentorder'].astype(int)
+            
+            st.dataframe(dup_display, use_container_width=True)
+            
+            # Analyze why it's duplicated
+            same_transcript = component_duplicates['transcriptid'].nunique() == 1
+            same_company = component_duplicates['companyid'].nunique() == 1
+            
+            if same_transcript:
+                st.info("ℹ️ **Duplicate Type:** Same text appears multiple times in the SAME transcript (unusual - may indicate data error)")
+            elif same_company:
+                st.info("ℹ️ **Duplicate Type:** Same company, different transcripts (likely same event recorded multiple times)")
+            else:
+                st.info("ℹ️ **Duplicate Type:** Different companies (unusual - may be template/boilerplate text)")
 
 with tab4:
     st.header("📊 Column Definitions")
     
     column_info = {
-        "companyid": "Unique identifier for the company",
-        "companyname": "Name of the company",
-        "keydevid": "Key development event ID",
-        "keydeveventtypename": "Type of event (e.g., Earnings Call, Special Call)",
-        "transcriptid": "Unique identifier for the transcript/earning call session",
-        "headline": "Title/headline of the earning call",
-        "mostimportantdateutc": "Date of the earning call (UTC)",
-        "mostimportanttimeutc": "Time of the earning call (UTC)",
-        "transcriptcreationdate_utc": "When the transcript was created",
-        "transcriptcreationtime_utc": "Time when transcript was created",
-        "audiolengthsec": "Total length of the call in seconds",
-        "transcriptcollectiontypename": "How transcript was collected",
-        "transcriptpresentationtypename": "Type of presentation format",
-        "transcriptcomponentid": "Unique ID for this specific speech component",
-        "componentorder": "⭐ Order of this speech in the call (1, 2, 3...) - CRITICAL for preserving conversation flow",
-        "transcriptcomponenttypename": "⭐ Type of speech: Presenter Speech, Answer, Question, Operator Message",
-        "transcriptpersonid": "Unique ID for the person speaking",
-        "transcriptpersonname": "Name of the person speaking",
-        "speakertypeid": "ID for speaker category",
-        "speakertypename": "⭐ Category of speaker: Executives, Analysts, Operator, etc.",
-        "companyofperson": "Company affiliation of the speaker",
-        "componenttextpreview": "Short preview of the text (first ~100 chars)",
-        "word_count": "Number of words in this component",
-        "componenttext": "⭐ MOST IMPORTANT - The actual full text spoken by the person",
-        "proid": "Professional ID (may be related to speaker)"
+        "companyid": ("🏢 Company", "Unique identifier for the company"),
+        "companyname": ("🏢 Company", "Name of the company"),
+        "keydevid": ("📅 Event", "Key development event ID"),
+        "keydeveventtypename": ("📅 Event", "Type of event (e.g., Earnings Call, Special Call)"),
+        "headline": ("📅 Event", "Title/headline of the earning call"),
+        "mostimportantdateutc": ("📅 Event", "Date of the earning call (UTC)"),
+        "mostimportanttimeutc": ("📅 Event", "Time of the earning call (UTC)"),
+        "transcriptid": ("📄 Transcript", "⭐ Unique ID for each earning call session - same ID = same call"),
+        "transcriptcollectiontypeid": ("📄 Transcript", "ID for collection type"),
+        "transcriptcollectiontypename": ("📄 Transcript", "How transcript was collected"),
+        "transcriptpresentationtypeid": ("📄 Transcript", "ID for presentation type"),
+        "transcriptpresentationtypename": ("📄 Transcript", "Type of presentation format"),
+        "transcriptcreationdate_utc": ("📄 Transcript", "When the transcript was created"),
+        "transcriptcreationtime_utc": ("📄 Transcript", "Time when transcript was created"),
+        "audiolengthsec": ("📄 Transcript", "Total length of the call in seconds"),
+        "transcriptcomponentid": ("💬 Component", "Unique ID for this specific speech component"),
+        "componentorder": ("💬 Component", "⭐ Order in conversation (0,1,2...) - CRITICAL for preserving flow"),
+        "transcriptcomponenttypeid": ("💬 Component", "ID for component type"),
+        "transcriptcomponenttypename": ("💬 Component", "⭐ Type: Presenter Speech, Answer, Question, Operator Message"),
+        "transcriptpersonid": ("🎤 Speaker", "Unique ID for the person speaking"),
+        "transcriptpersonname": ("🎤 Speaker", "Name of the person speaking"),
+        "speakertypeid": ("🎤 Speaker", "ID for speaker category"),
+        "speakertypename": ("🎤 Speaker", "⭐ Category: Executives, Analysts, Operator, etc."),
+        "companyofperson": ("🎤 Speaker", "Company affiliation of the speaker"),
+        "proid": ("🎤 Speaker", "Professional ID (additional identifier)"),
+        "componenttextpreview": ("📝 Text", "Short preview of the text (~100 chars)"),
+        "word_count": ("📝 Text", "Number of words in this component"),
+        "componenttext": ("📝 Text", "⭐⭐⭐ MOST CRITICAL - The actual full text spoken")
     }
     
     col_df = pd.DataFrame([
-        {"Column Name": col, "Description": desc, "Data Type": str(df[col].dtype)}
-        for col, desc in column_info.items()
+        {
+            "Category": cat,
+            "Column Name": col, 
+            "Description": desc, 
+            "Data Type": str(df[col].dtype)
+        }
+        for col, (cat, desc) in column_info.items()
     ])
     
-    st.dataframe(col_df, use_container_width=True, height=600)
+    st.dataframe(col_df, use_container_width=True, height=700)
     
-    st.info("⭐ = Critical columns for your analysis task")
+    st.info("⭐ = Important for analysis | ⭐⭐⭐ = Most critical column")
 
 with tab5:
     st.header("🔁 Duplicate Analysis")
