@@ -1,12 +1,17 @@
 import streamlit as st
 import pickle
 import pandas as pd
+import os
 
 st.set_page_config(page_title="Transcript Data Viewer", layout="wide")
 
 @st.cache_data
 def load_data():
-    with open('transcripts_cleaned.pkl', 'rb') as f:
+    # Get the path to the data file (works from any directory)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, '..', 'data', 'processed', 'transcripts_cleaned.pkl')
+
+    with open(file_path, 'rb') as f:
         df = pickle.load(f)
     
     if df.columns.duplicated().any():
@@ -49,7 +54,7 @@ with col2:
 with col3:
     st.metric("🎤 Total Components", f"{len(filtered_df):,}")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 Overview", "📄 Transcript Viewer", "🔎 Raw Data Explorer", "📊 Column Info", "🔁 Duplicates"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📋 Overview", "📄 Transcript Viewer", "🔎 Raw Data Explorer", "📊 Column Info", "🔁 Duplicates", "🏷️ Labeled Data"])
 
 with tab1:
     st.header("Company Overview")
@@ -378,3 +383,211 @@ with tab5:
             )
         else:
             st.success("✅ No duplicates found in current filtered data!")
+
+with tab6:
+    st.header("🏷️ Labeled Data Viewer")
+    st.caption("Browse and compare AI-generated vs Human-labeled sentiment classifications")
+
+    # Find and load labeled data files
+    labeled_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'labeled')
+
+    # Get list of labeled files
+    labeled_files = []
+    if os.path.exists(labeled_dir):
+        for file in os.listdir(labeled_dir):
+            if file.endswith('_labeled.pkl'):
+                labeled_files.append(file)
+
+    if not labeled_files:
+        st.warning("⚠️ No labeled data files found. Please run the labeling process first.")
+    else:
+        labeled_files.sort()
+
+        # Select which labeled dataset to view
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            selected_labeled_file = st.selectbox(
+                "Select Labeled Dataset",
+                labeled_files,
+                format_func=lambda x: x.replace('sample_20_labeled_', '').replace('.pkl', '').replace('_', ' ').title()
+            )
+
+        # Load selected labeled data
+        @st.cache_data
+        def load_labeled_data(filename):
+            file_path = os.path.join(labeled_dir, filename)
+            with open(file_path, 'rb') as f:
+                return pickle.load(f)
+
+        labeled_df = load_labeled_data(selected_labeled_file)
+
+        # Initialize session state for labeled data navigation
+        if 'labeled_current_idx' not in st.session_state:
+            st.session_state.labeled_current_idx = 0
+        if 'labeled_filter' not in st.session_state:
+            st.session_state.labeled_filter = 'All'
+
+        # Apply filter if any
+        if st.session_state.labeled_filter != 'All':
+            filtered_labeled_df = labeled_df[labeled_df['user_sentiment'] == st.session_state.labeled_filter].reset_index(drop=True)
+        else:
+            filtered_labeled_df = labeled_df.reset_index(drop=True)
+
+        # Calculate statistics
+        total_labeled = len(labeled_df)
+        positive_count = (labeled_df['user_sentiment'] == 'positive').sum()
+        negative_count = (labeled_df['user_sentiment'] == 'negative').sum()
+        neutral_count = (labeled_df['user_sentiment'] == 'neutral').sum()
+        agreement_count = (labeled_df['user_sentiment'] == labeled_df['ai_sentiment']).sum()
+        agreement_rate = (agreement_count / total_labeled * 100) if total_labeled > 0 else 0
+        changed_count = labeled_df['label_changed'].sum()
+
+        # Display statistics
+        st.markdown("### 📊 Statistics")
+        stat_col1, stat_col2, stat_col3, stat_col4, stat_col5, stat_col6 = st.columns(6)
+
+        with stat_col1:
+            st.metric("📌 Total", total_labeled)
+        with stat_col2:
+            st.metric("✅ Positive", f"{positive_count} ({positive_count/total_labeled*100:.0f}%)")
+        with stat_col3:
+            st.metric("❌ Negative", f"{negative_count} ({negative_count/total_labeled*100:.0f}%)")
+        with stat_col4:
+            st.metric("⚪ Neutral", f"{neutral_count} ({neutral_count/total_labeled*100:.0f}%)")
+        with stat_col5:
+            st.metric("🤝 Agreement", f"{agreement_count}/{total_labeled} ({agreement_rate:.0f}%)")
+        with stat_col6:
+            st.metric("🔄 Changed", changed_count)
+
+        st.markdown("---")
+
+        # Filter options
+        st.markdown("### 🔍 Filter")
+        filter_col1, filter_col2, filter_col3 = st.columns([1, 1, 2])
+        with filter_col1:
+            st.session_state.labeled_filter = st.selectbox(
+                "Show sentiment",
+                ['All', 'positive', 'negative', 'neutral'],
+                key="labeled_sentiment_filter"
+            )
+        with filter_col2:
+            show_disagreements = st.checkbox("Show only disagreements", value=False)
+            if show_disagreements:
+                filtered_labeled_df = filtered_labeled_df[filtered_labeled_df['label_changed'] == True]
+
+        st.markdown("---")
+
+        # Navigation and display
+        if len(filtered_labeled_df) > 0:
+            # Reset index if needed
+            if st.session_state.labeled_current_idx >= len(filtered_labeled_df):
+                st.session_state.labeled_current_idx = 0
+
+            idx = st.session_state.labeled_current_idx
+            row = filtered_labeled_df.iloc[idx]
+
+            # Header with navigation
+            nav_col1, nav_col2, nav_col3, nav_col4 = st.columns([1, 2, 1, 1])
+            with nav_col1:
+                if st.button("⬅️ Previous", use_container_width=True):
+                    if st.session_state.labeled_current_idx > 0:
+                        st.session_state.labeled_current_idx -= 1
+                        st.rerun()
+            with nav_col2:
+                st.markdown(f"### 📍 Event {idx + 1} of {len(filtered_labeled_df)}")
+            with nav_col3:
+                if st.button("Next ➡️", use_container_width=True):
+                    if st.session_state.labeled_current_idx < len(filtered_labeled_df) - 1:
+                        st.session_state.labeled_current_idx += 1
+                        st.rerun()
+            with nav_col4:
+                jump_to = st.number_input(
+                    "Jump to",
+                    min_value=1,
+                    max_value=len(filtered_labeled_df),
+                    value=idx + 1,
+                    key="jump_to_labeled"
+                )
+                if jump_to != idx + 1:
+                    st.session_state.labeled_current_idx = jump_to - 1
+                    st.rerun()
+
+            st.markdown("---")
+
+            # Event details
+            st.markdown("### 📋 Event Details")
+            detail_col1, detail_col2, detail_col3 = st.columns(3)
+            with detail_col1:
+                st.write(f"**Company:** {row['companyname']}")
+                st.write(f"**Date:** {row['event_date']}")
+            with detail_col2:
+                st.write(f"**Word Count:** {row['total_word_count']:,}")
+                st.write(f"**Headline:** {row['headline']}")
+            with detail_col3:
+                st.write(f"**Transcript ID:** {row['transcriptid']}")
+                st.write(f"**Speakers:** {row['num_speakers']}")
+
+            st.markdown("---")
+
+            # Presentation text
+            st.markdown("### 📝 Presentation Text")
+            st.text_area(
+                "Full executive presentation text:",
+                value=row['presentation_text'],
+                height=250,
+                disabled=True,
+                label_visibility="collapsed"
+            )
+
+            st.markdown("---")
+
+            # AI vs Human comparison
+            st.markdown("### 🤖 AI vs 👤 Human Comparison")
+
+            ai_sentiment = row['ai_sentiment']
+            user_sentiment = row['user_sentiment']
+            is_agreement = ai_sentiment == user_sentiment
+
+            comp_col1, comp_col2, comp_col3 = st.columns(3)
+
+            with comp_col1:
+                st.markdown("**🤖 AI Classification**")
+                ai_color = {'positive': 'green', 'negative': 'red', 'neutral': 'gray'}[ai_sentiment]
+                st.markdown(f":{ai_color}[**{ai_sentiment.upper()}**]")
+                st.caption("AI Reasoning:")
+                st.markdown(f"*{row['ai_reasoning']}*")
+
+            with comp_col2:
+                st.markdown("**Agreement Status**")
+                if is_agreement:
+                    st.success("✅ **MATCH**")
+                    st.caption("Human agreed with AI")
+                else:
+                    st.error("⚠️ **DISAGREEMENT**")
+                    st.caption(f"Changed from {ai_sentiment} to {user_sentiment}")
+
+            with comp_col3:
+                st.markdown("**👤 Human Label**")
+                user_color = {'positive': 'green', 'negative': 'red', 'neutral': 'gray'}[user_sentiment]
+                st.markdown(f":{user_color}[**{user_sentiment.upper()}**]")
+                if row.get('user_notes'):
+                    st.caption("Human Notes:")
+                    st.markdown(f"*{row['user_notes']}*")
+                else:
+                    st.caption("No notes provided")
+
+            st.markdown("---")
+
+            # Comparison table
+            st.markdown("### 📊 Summary Comparison")
+            comparison_data = {
+                'Aspect': ['Sentiment', 'Confidence', 'Category'],
+                'AI': [ai_sentiment, row.get('ai_prob', 'N/A'), 'Automated'],
+                'Human': [user_sentiment, 'Manual Review', 'Expert'],
+                'Status': ['Match ✅' if is_agreement else 'Mismatch ⚠️', '', '']
+            }
+            comparison_df = pd.DataFrame(comparison_data)
+            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+
+        else:
+            st.info("No events match your filter criteria.")

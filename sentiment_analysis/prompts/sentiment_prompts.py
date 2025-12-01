@@ -53,16 +53,17 @@ DECISION RULES:
 
 OUTPUT (JSON only):
 {
-    "sentiment": "positive|negative|neutral",
+    "reasoning": "Cite key evidence (specific metrics if available, or tone + context if not)",
     "positive_prob": 0.0-1.0,
     "negative_prob": 0.0-1.0,
     "neutral_prob": 0.0-1.0,
-    "reasoning": "Cite key evidence (specific metrics if available, or tone + context if not)"
+    "sentiment": "positive|negative|neutral"
 }"""
 
 
-def get_user_prompt(presentation_text: str, company_name: str = '', 
-                    event_date: str = '') -> str:
+def get_user_prompt(
+    presentation_text: str, company_name: str = "", event_date: str = ""
+) -> str:
     return f"""Analyze this presentation and return JSON with sentiment classification:
 
 Company: {company_name}
